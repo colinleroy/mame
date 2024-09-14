@@ -523,6 +523,7 @@ void mos6551_device::write_dcd(int state)
 }
 
 static unsigned long last_stop_tick = 0, cur_clock_tick = 0;
+static int missed_start_dtr = 0, missed_start_rxd = 0;
 void mos6551_device::receiver_clock(int state)
 {
 	if (m_rx_clock != state)
@@ -531,7 +532,6 @@ void mos6551_device::receiver_clock(int state)
 
 		if (m_rx_clock)
 		{
-			cur_clock_tick++;
 
 			/// TODO: find out whether this should be here or in write_dcd
 			if ((m_irq_state & IRQ_DCD) == 0 && !m_dcd != !(m_status & SR_DCD))
@@ -558,6 +558,7 @@ void mos6551_device::receiver_clock(int state)
 			}
 
 			m_rx_counter++;
+			cur_clock_tick++;
 
 			switch (m_rx_state)
 			{
@@ -566,28 +567,34 @@ void mos6551_device::receiver_clock(int state)
 				{
 					if (!m_rxd && !m_dtr)
 					{
-						LOG("MOS6551: RX START BIT at clock tick %lu\n", cur_clock_tick);
+						LOG("MOS6551: RX START BIT at clock tick %lu (miss RXD %d DTR %d)\n", cur_clock_tick, missed_start_rxd, missed_start_dtr);
+						missed_start_rxd = 0;
+						missed_start_dtr = 0;
 					}
 					else
 					{
 						m_rx_counter = 0;
+						if (m_rxd)
+							missed_start_rxd++;
+						if (m_dtr)
+							missed_start_dtr++;
 					}
 				}
 
-				if (m_rx_counter >= m_divide / 2)
+				if (m_rx_counter == m_divide)
 				{
+					m_rx_counter = 0;
+
 					if (!m_rxd)
 					{
 						m_rx_state = STATE_DATA;
-						m_rx_counter = 0;
+						LOG("6551: transition to DATA at tick %lu, rx_counter %lu, state %d\n", cur_clock_tick, m_rx_counter, m_rx_state);
 						m_rx_shift = 0;
 						m_rx_parity = 0;
 						m_rx_bits = 0;
 					}
 					else
 					{
-						m_rx_counter = 0;
-
 						LOG("MOS6551: RX false START BIT\n");
 					}
 				}
@@ -600,7 +607,7 @@ void mos6551_device::receiver_clock(int state)
 
 					if (m_rx_bits < m_wordlength)
 					{
-						LOG("MOS6551: RX DATA BIT %d %d\n", m_rx_bits, m_rxd);
+						LOG("MOS6551: RX DATA BIT %d %d tick %lu\n", m_rx_bits, m_rxd, cur_clock_tick);
 					}
 					else
 					{
@@ -620,6 +627,7 @@ void mos6551_device::receiver_clock(int state)
 						(m_rx_bits == (m_wordlength + 1) && m_parity != PARITY_NONE))
 					{
 						m_rx_state = STATE_STOP;
+						LOG("6551: transition to STOP at tick %lu, rx_counter %lu, state %d\n", cur_clock_tick, m_rx_counter, m_rx_state);
 					}
 				}
 				break;
@@ -668,6 +676,7 @@ void mos6551_device::receiver_clock(int state)
 					}
 
 					m_rx_state = STATE_START;
+					LOG("6551: transition to START at tick %lu, rx_counter %lu, state %d\n", cur_clock_tick, m_rx_counter, m_rx_state);
 
 					if (m_dtr)
 					{

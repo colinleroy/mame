@@ -9,7 +9,7 @@
 #include "emu.h"
 #include "mos6551.h"
 
-//#define VERBOSE 1
+#define VERBOSE 1
 #include "logmacro.h"
 
 
@@ -522,6 +522,7 @@ void mos6551_device::write_dcd(int state)
 	}
 }
 
+static unsigned long last_stop_tick = 0, cur_clock_tick = 0;
 void mos6551_device::receiver_clock(int state)
 {
 	if (m_rx_clock != state)
@@ -530,6 +531,8 @@ void mos6551_device::receiver_clock(int state)
 
 		if (m_rx_clock)
 		{
+			cur_clock_tick++;
+
 			/// TODO: find out whether this should be here or in write_dcd
 			if ((m_irq_state & IRQ_DCD) == 0 && !m_dcd != !(m_status & SR_DCD))
 			{
@@ -563,7 +566,7 @@ void mos6551_device::receiver_clock(int state)
 				{
 					if (!m_rxd && !m_dtr)
 					{
-						LOG("MOS6551: RX START BIT\n");
+						LOG("MOS6551: RX START BIT at clock tick %lu\n", cur_clock_tick);
 					}
 					else
 					{
@@ -626,7 +629,7 @@ void mos6551_device::receiver_clock(int state)
 				{
 					m_rx_counter = 0;
 
-					LOG("MOS6551: RX STOP BIT\n");
+					LOG("MOS6551: RX STOP BIT at clock tick %lu\n", cur_clock_tick);
 
 					if (!(m_status & SR_RDRF))
 					{
@@ -642,6 +645,9 @@ void mos6551_device::receiver_clock(int state)
 						}
 
 						m_rdr = m_rx_shift;
+
+						LOG("MOS6551: Got byte in %lu ticks\n", cur_clock_tick - last_stop_tick);
+						last_stop_tick = cur_clock_tick;
 
 						if (m_wordlength == 7 && m_parity != PARITY_NONE)
 						{

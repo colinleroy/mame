@@ -146,6 +146,8 @@ ROM_START( mouse )
 
 	ROM_REGION(0x800, MOUSE_MCU_TAG, 0)
 	ROM_LOAD( "341-0269.2b",  0x000000, 0x000800, CRC(94067f16) SHA1(3a2baa6648efe4456d3ec3721216e57c64f7acfc) )
+	/* FIXME HACK before resolution of https://github.com/mamedev/mame/issues/13598 */
+	ROM_FILL( 0x6c9, 1, 0xc5 ) /* Timer init, 60Hz, (((256−0xDF)×256)+(256−0xC7) + 10) * 2 = 17030 */
 
 	ROM_REGION(0xc00, "pal", 0)
 	ROM_LOAD( "mmi_pal16r4a,jedec.2a", 0x000000, 0x000b04, CRC(1d620ee5) SHA1(5aa9a515c919ff7a18878649cac5d44f0c2abf28) )

@@ -609,9 +609,9 @@ void m6805_base_device::execute_run()
 
 		u8 const ireg = m_params.m_addr_width > 14 ? rdop<true>(PC++) : rdop<false>(PC++);
 
-		(this->*m_params.m_ops[ireg])();
 		m_icount -= m_params.m_cycles[ireg];
 		burn_cycles(m_params.m_cycles[ireg]);
+		(this->*m_params.m_ops[ireg])();
 	}
 	while (m_icount > 0);
 }

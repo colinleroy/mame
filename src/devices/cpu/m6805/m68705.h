@@ -78,7 +78,7 @@ public:
 		m_tcr = 0x7f;
 	}
 
-	u8 tdr_r() { return m_tdr; }
+	u8 tdr_r() { return m_tdr + 1; /* TDR last decrement happens *after* loading it */ }
 	void tdr_w(u8 data) { m_tdr = data; }
 
 	u8 tcr_r() { return (m_options & TIMER_MOR) ? m_tcr | TCR_PSC : m_tcr & ~TCR_PSC; }
